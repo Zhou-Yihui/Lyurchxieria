@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>SCMS - 邮箱主页</title>
+<style>
+body{font-family:"Microsoft YaHei";background:#0b0c2a;color:#fff;text-align:center;padding-top:60px;}
+button{margin:8px;padding:10px 25px;border:none;border-radius:5px;background:#f0c000;cursor:pointer;}
+button:hover{background:#ffd700;}
+</style>
+</head>
+<body>
+<h2>欢迎回来，<span id="user"></span></h2>
+<h3>星门国家邮件系统 SCMS</h3>
+<button onclick="goto('inbox.html')">📥 收件箱</button>
+<button onclick="goto('compose.html')">✉️ 写信</button>
+<button onclick="goto('sent.html')">📤 发件箱</button>
+<button onclick="logout()">退出</button>
+<script>
+const u=localStorage.getItem("SCMS-currentUser");
+if(!u)location.href="index.html";
+document.getElementById("user").textContent=u;
+function goto(p){location.href=p;}
+function logout(){localStorage.removeItem("SCMS-currentUser");location.href="index.html";}
+</script>
+</body>
+</html>

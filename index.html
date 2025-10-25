@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>星门国家邮件系统 | SCMS</title>
+<style>
+body{
+  font-family:"Microsoft YaHei",sans-serif;
+  background:#0b0c2a;
+  color:#fff;
+  margin:0;
+  padding:0;
+  text-align:center;
+}
+header{
+  padding:20px;
+  background:rgba(255,255,255,.05);
+}
+section{
+  width:90%;
+  max-width:600px;
+  margin:20px auto;
+  padding:15px;
+  background:rgba(255,255,255,.08);
+  border-radius:10px;
+}
+input,textarea,button{
+  width:80%;
+  padding:8px;
+  margin:5px 0;
+  border-radius:5px;
+  border:none;
+}
+textarea{
+  height:100px;
+  background:#111;
+  color:#fff;
+}
+button{
+  background:#f0c000;
+  color:#000;
+  cursor:pointer;
+  transition:.2s;
+}
+button:hover{background:#ffd700;}
+.mail-item{
+  padding:5px;
+  border-bottom:1px solid #333;
+  cursor:pointer;
+}
+.mail-item:hover{background:#222;}
+.hidden{display:none;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>星门国家邮件系统</h1>
+  <h3>StarGate Civilization Mail System (SCMS)</h3>
+</header>
+
+<!-- 登录/注册 -->
+<section id="auth-section">
+  <h3>登录 / 注册账户</h3>
+  <input id="username" placeholder="用户名 / Username"><br>
+  <input id="password" type="password" placeholder="密码 / Password"><br>
+  <button onclick="register()">注册 / Register</button>
+  <button onclick="login()">登录 / Login</button>
+  <p id="auth-msg"></p>
+</section>
+
+<!-- 主菜单 -->
+<section id="main-menu" class="hidden">
+  <h3>欢迎回来，<span id="user-name"></span></h3>
+  <button onclick="gotoPage('inbox')">📥 收件箱 Inbox</button>
+  <button onclick="gotoPage('sent')">📤 发件箱 Sent</button>
+  <button onclick="gotoPage('compose')">✉️ 写信 Compose</button>
+  <button onclick="logout()">退出 Logout</button>
+</section>
+
+<!-- 收件箱 -->
+<section id="inbox-section" class="hidden">
+  <h3>📥 收件箱 Inbox</h3>
+  <div id="inbox-list"></div>
+  <textarea id="inbox-content" readonly placeholder="邮件内容 / Mail Content"></textarea>
+</section>
+
+<!-- 发件箱 -->
+<section id="sent-section" class="hidden">
+  <h3>📤 发件箱 Sent</h3>
+  <div id="sent-list"></div>
+  <textarea id="sent-content" readonly placeholder="邮件内容 / Mail Content"></textarea>
+</section>
+
+<!-- 写信 -->
+<section id="compose-section" class="hidden">
+  <h3>✉️ 撰写邮件 Compose</h3>
+  <input id="to" placeholder="收件人 / To"><br>
+  <input id="subject" placeholder="主题 / Subject"><br>
+  <textarea id="content" placeholder="正文 / Message"></textarea><br>
+  <button onclick="sendMail()">发送 / Send</button>
+  <p id="send-msg"></p>
+</section>
+
+<script>
+/* ========== 数据层 ========== */
+const getUsers = () => JSON.parse(localStorage.getItem("SCMS-users") || "{}");
+const setUsers = u => localStorage.setItem("SCMS-users", JSON.stringify(u));
+
+/* ========== 注册 ========== */
+function register(){
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value.trim();
+  if(!username || !password) return msg("auth-msg", "用户名和密码不能为空");
+  const users = getUsers();
+  if(users[username]) return msg("auth-msg", "用户已存在");
+  users[username] = {password, inbox:[], sent:[]};
+  setUsers(users);
+  msg("auth-msg", "注册成功，请登录");
+}
+
+/* ========== 登录 ========== */
+function login(){
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value.trim();
+  const users = getUsers();
+  if(users[username] && users[username].password === password){
+    localStorage.setItem("SCMS-currentUser", username);
+    showMainMenu(username);
+    gotoPage("main-menu");
+  } else msg("auth-msg", "用户名或密码错误");
+}
+
+/* ========== 登出 ========== */
+function logout(){
+  localStorage.removeItem("SCMS-currentUser");
+  localStorage.removeItem("SCMS-currentPage");
+  location.reload();
+}
+
+/* ========== 页面切换 ========== */
+function gotoPage(page){
+  document.querySelectorAll("section").forEach(s => s.classList.add("hidden"));
+  document.getElementById(page + "-section").classList.remove("hidden");
+  localStorage.setItem("SCMS-currentPage", page);
+  if(page === "inbox") showInbox();
+  if(page === "sent") showSent();
+  if(page === "compose") msg("send-msg", "");
+}
+
+/* ========== 主菜单 ========== */
+function showMainMenu(username){
+  document.getElementById("auth-section").classList.add("hidden");
+  document.getElementById("main-menu").classList.remove("hidden");
+  document.getElementById("user-name").textContent = username;
+}
+
+/* ========== 收件箱 ========== */
+function showInbox(){
+  const u = localStorage.getItem("SCMS-currentUser");
+  const mails = getUsers()[u]?.inbox || [];
+  const list = document.getElementById("inbox-list");
+  list.innerHTML = mails.length ? "" : "暂无邮件";
+  mails.forEach(m => {
+    const div = document.createElement("div");
+    div.className = "mail-item";
+    div.textContent = `来自 ${m.from}：${m.subject}`;
+    div.onclick = () => document.getElementById("inbox-content").value = m.content;
+    list.appendChild(div);
+  });
+}
+
+/* ========== 发件箱 ========== */
+function showSent(){
+  const u = localStorage.getItem("SCMS-currentUser");
+  const mails = getUsers()[u]?.sent || [];
+  const list = document.getElementById("sent-list");
+  list.innerHTML = mails.length ? "" : "暂无邮件";
+  mails.forEach(m => {
+    const div = document.createElement("div");
+    div.className = "mail-item";
+    div.textContent = `发给 ${m.to}：${m.subject}`;
+    div.onclick = () => document.getElementById("sent-content").value = m.content;
+    list.appendChild(div);
+  });
+}
+
+/* ========== 写信 ========== */
+function sendMail(){
+  const from = localStorage.getItem("SCMS-currentUser");
+  const to = document.getElementById("to").value.trim();
+  const subject = document.getElementById("subject").value.trim();
+  const content = document.getElementById("content").value.trim();
+  if(!to || !subject || !content) return msg("send-msg", "请填写完整");
+  const users = getUsers();
+  if(!users[to]) return msg("send-msg", "收件人不存在");
+  const mail = {from, to, subject, content};
+  users[to].inbox.push(mail);
+  users[from].sent.push(mail);
+  setUsers(users);
+  msg("send-msg", "发送成功");
+  // 清空表单
+  document.getElementById("to").value = "";
+  document.getElementById("subject").value = "";
+  document.getElementById("content").value = "";
+  // 可选：自动跳转发件箱
+  // gotoPage("sent");
+}
+
+/* ========== 自动登录 & 恢复页面 ========== */
+window.onload = () => {
+  const user = localStorage.getItem("SCMS-currentUser");
+  const page = localStorage.getItem("SCMS-currentPage") || "main-menu";
+  if(user){
+    showMainMenu(user);
+    gotoPage(page);
+  }
+};
+
+/* ========== 小工具 ========== */
+function msg(id, txt){ document.getElementById(id).textContent = txt; }
+</script>
+</body>
+</html>

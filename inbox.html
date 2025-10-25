@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>SCMS - 收件箱</title>
+<style>
+body{font-family:"Microsoft YaHei";background:#0b0c2a;color:#fff;padding:20px;}
+button{background:#f0c000;border:none;padding:8px 15px;border-radius:5px;cursor:pointer;margin-bottom:10px;}
+.mail{padding:8px;border-bottom:1px solid #333;cursor:pointer;}
+.mail:hover{background:#222;}
+textarea{width:100%;height:120px;background:#111;color:#fff;border:none;border-radius:5px;margin-top:10px;}
+</style>
+</head>
+<body>
+<h2>📥 收件箱 / Inbox</h2>
+<button onclick="back()">返回主页 / Home</button>
+<div id="list"></div>
+<textarea id="content" readonly placeholder="邮件内容"></textarea>
+<script>
+const u=localStorage.getItem("SCMS-currentUser");
+if(!u)location.href="index.html";
+const users=JSON.parse(localStorage.getItem("SCMS-users")||"{}");
+const mails=users[u]?.inbox||[];
+list.innerHTML=mails.map((m,i)=>`<div class='mail' onclick='openMail(${i})'>来自 ${m.from}：${m.subject}</div>`).join("")||"暂无邮件";
+function openMail(i){content.value=mails[i].content;}
+function back(){location.href="home.html";}
+</script>
+</body>
+</html>
