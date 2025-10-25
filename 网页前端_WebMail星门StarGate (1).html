@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>StarGate Civilization Mail System (SCMS) - 星门邮箱</title>
+<style>
+/* 🌌 SCMS 星门 Webmail 样式 */
+body {
+    font-family: "Microsoft YaHei", sans-serif;
+    background:#0b0c2a;
+    color:#fff;
+    margin:0;
+    padding:0;
+}
+.container {
+    width:600px;
+    margin:50px auto;
+    background:#111;
+    padding:20px;
+    border-radius:10px;
+}
+h1 {
+    text-align:center;
+    color:#f0c000;
+}
+input, button, textarea {
+    display:block;
+    width:100%;
+    margin:10px 0;
+    padding:10px;
+    border-radius:5px;
+}
+button {
+    background:#f0c000;
+    border:none;
+    cursor:pointer;
+}
+ul {
+    list-style:none;
+    padding:0;
+}
+li {
+    padding:10px;
+    border-bottom:1px solid #333;
+    cursor:pointer;
+}
+li:hover {
+    background:#222;
+}
+textarea {
+    height:150px;
+    background:#111;
+    color:#fff;
+}
+</style>
+</head>
+<body>
+<div class="container">
+    <h1>🌌 StarGate Civilization Mail System (SCMS) - 星门邮箱</h1>
+    <!-- 登录区 Login Section -->
+    <div id="login">
+        <input type="text" id="username" placeholder="用户名 / Username">
+        <input type="password" id="password" placeholder="密码 / Password">
+        <button onclick="login()">登录 / Login</button>
+    </div>
+
+    <!-- 收件箱 Mailbox Section -->
+    <div id="mailbox" style="display:none;">
+        <h2>收件箱 Inbox</h2>
+        <ul id="mail-list"></ul>
+        <textarea id="mail-content" readonly placeholder="邮件内容 / Mail Content"></textarea>
+    </div>
+</div>
+
+<script>
+// 🌌 SCMS 星门 Webmail 简单模拟
+function login(){
+    const user = document.getElementById('username').value;
+    const pass = document.getElementById('password').value;
+    if(!user || !pass){
+        alert("请输入用户名和密码 / Please enter username & password");
+        return;
+    }
+
+    // 模拟登录成功 / Simulate login success
+    alert("登录成功 / Login Success: " + user);
+
+    document.getElementById('login').style.display='none';
+    document.getElementById('mailbox').style.display='block';
+
+    const mailList = document.getElementById('mail-list');
+    const mails = [
+        "欢迎使用星门邮箱！ / Welcome to SCMS!",
+        "测试邮件示例 / Sample Test Mail"
+    ];
+    mails.forEach(mail=>{
+        const li = document.createElement('li');
+        li.textContent = mail;
+        li.onclick = ()=>document.getElementById('mail-content').value = mail;
+        mailList.appendChild(li);
+    });
+}
+</script>
+</body>
+</html>
