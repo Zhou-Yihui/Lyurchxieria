@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>星门国家邮件系统 (SCMS)</title>
+<style>
+/* 🌌 SCMS 星门 Webmail 样式 */
+body {
+    font-family: "Microsoft YaHei", sans-serif;
+    background: linear-gradient(120deg, #0a0f24, #142850, #27496d);
+    color: #fff;
+    margin:0;
+    padding:0;
+    text-align:center;
+}
+header {
+    padding:20px 0;
+    background: rgba(255,255,255,0.05);
+    box-shadow:0 0 10px rgba(0,0,0,0.3);
+}
+section {
+    width:90%;
+    max-width:700px;
+    background: rgba(255,255,255,0.08);
+    border-radius:15px;
+    padding:20px;
+    margin:30px auto;
+}
+input, textarea, button {
+    width:80%;
+    padding:10px;
+    margin:5px 0;
+    border:none;
+    border-radius:8px;
+    font-size:1em;
+}
+textarea { height:120px; background:#111; color:#fff; }
+button {
+    background-color:#3ba9ff;
+    color:white;
+    cursor:pointer;
+    transition:0.3s;
+}
+button:hover { background-color:#5ac8ff; }
+#mailbox,#inbox,#sent-box,#send-mail { display:none; text-align:left; }
+.mail-item { padding:8px; border-bottom:1px solid #333; cursor:pointer; }
+.mail-item:hover { background:#222; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>星门国家邮件系统</h1>
+  <h3>StarGate Civilization Mail System (SCMS)</h3>
+</header>
+
+<!-- 登录/注册 -->
+<section id="auth-section">
+  <h3>登录或注册账户 / Login or Register</h3>
+  <input id="username" placeholder="用户名 / Username" /><br />
+  <input id="password" type="password" placeholder="密码 / Password" /><br />
+  <button onclick="login()">登录 / Login</button>
+  <button onclick="register()">注册 / Register</button>
+  <p id="auth-msg" style="color:#f0c000;"></p>
+</section>
+
+<!-- 邮箱主界面 -->
+<section id="mailbox">
+  <h3>欢迎回来，<span id="user"></span></h3>
+  <button onclick="showInbox()">📥 收件箱 / Inbox</button>
+  <button onclick="showSent()">📤 发件箱 / Sent</button>
+  <button onclick="showSendMail()">✉️ 写信 / Compose</button>
+  <button onclick="logout()">退出 / Logout</button>
+</section>
+
+<!-- 收件箱 -->
+<section id="inbox">
+  <h3>收件箱 / Inbox</h3>
+  <div id="inbox-list"></div>
+</section>
+
+<!-- 发件箱 -->
+<section id="sent-box">
+  <h3>发件箱 / Sent</h3>
+  <div id="sent-list"></div>
+</section>
+
+<!-- 写信 -->
+<section id="send-mail">
+  <h3>撰写新邮件 / Compose New Mail</h3>
+  <input id="to" placeholder="收件人 / To" /><br />
+  <input id="subject" placeholder="主题 / Subject" /><br />
+  <textarea id="content" placeholder="正文 / Message"></textarea><br />
+  <button onclick="sendMail()">发送 / Send</button>
+  <p id="send-msg" style="color:#f0c000;"></p>
+</section>
+
+<script>
+const api = "http://localhost:3000/api"; // 后端地址，部署后修改为 HTTPS
+
+// 注册
+async function register(){
+  const u = username.value.trim(), p = password.value.trim();
+  if(!u||!p){ authMsg("用户名和密码不能为空 / Username & Password required"); return; }
+  const res = await fetch(api+"/register",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({email:u,password:p})
+  });
+  const data = await res.json();
+  authMsg(data.message);
+}
+
+// 登录
+async function login(){
+  const u = username.value.trim(), p = password.value.trim();
+  if(!u||!p){ authMsg("用户名和密码不能为空 / Username & Password required"); return; }
+  const res = await fetch(api+"/login",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({email:u,password:p})
+  });
+  const data = await res.json();
+  if(data.success){
+    localStorage.setItem("user",u);
+    document.getElementById("user").textContent = u;
+    showMailbox();
+  }else authMsg(data.message);
+}
+
+// 退出
+function logout(){
+  localStorage.removeItem("user");
+  location.reload();
+}
+
+// 显示主界面
+function showMailbox(){
+  document.getElementById("auth-section").style.display="none";
+  document.getElementById("mailbox").style.display="block";
+  showInbox();
+}
+
+// 显示收件箱
+async function showInbox(){
+  hideAll();
+  inbox.style.display="block";
+  const u = localStorage.getItem("user");
+  const res = await fetch(api+"/inbox/"+u);
+  const mails = await res.json();
+  inboxList.innerHTML = mails.length ? mails.map(m=>`<div class="mail-item">来自 ${m.from} ： ${m.subject}</div>`).join('') : "暂无邮件 / No mails";
+}
+
+// 显示发件箱
+async function showSent(){
+  hideAll();
+  sentBox.style.display="block";
+  const u = localStorage.getItem("user");
+  const res = await fetch(api+"/sent/"+u);
+  const mails = await res.json();
+  sentList.innerHTML = mails.length ? mails.map(m=>`<div class="mail-item">发给 ${m.to} ： ${m.subject}</div>`).join('') : "暂无已发送邮件 / No sent mails";
+}
+
+// 显示写信
+function showSendMail(){
+  hideAll();
+  sendMailSection.style.display="block";
+}
+
+// 发送邮件
+async function sendMail(){
+  const from = localStorage.getItem("user");
+  const mail = {from,to:to.value,subject:subject.value,content:content.value};
+  if(!mail.to||!mail.subject||!mail.content){ sendMsg.textContent="收件人/主题/内容不能为空 / All fields required"; return; }
+  const res = await fetch(api+"/send",{ 
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(mail)
+  });
+  const data = await res.json();
+  sendMsg.textContent=data.message;
+  to.value=subject.value=content.value="";
+}
+
+// 隐藏所有邮件界面
+function hideAll(){ inbox.style.display=sentBox.style.display=sendMailSection.style.display="none"; }
+
+// 页面加载检查登录状态
+window.onload = ()=>{
+  const user = localStorage.getItem("user");
+  if(user){
+    document.getElementById("user").textContent=user;
+    showMailbox();
+  }
+};
+</script>
+
+</body>
+</html>
