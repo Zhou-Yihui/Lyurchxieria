@@ -1,0 +1,41 @@
+// 注册
+function register() {
+  const u = username.value.trim();
+  const p = password.value.trim();
+  if (!u || !p) return alert("用户名和密码不能为空");
+  
+  let users = JSON.parse(localStorage.getItem("scms-users") || "{}");
+  if(users[u]) return alert("用户已存在");
+  
+  users[u] = { password: p, inbox: [], sent: [] };
+  localStorage.setItem("scms-users", JSON.stringify(users));
+  alert("注册成功");
+}
+
+// 登录
+function login() {
+  const u = username.value.trim();
+  const p = password.value.trim();
+  let users = JSON.parse(localStorage.getItem("scms-users") || "{}");
+  if(users[u] && users[u].password === p){
+    localStorage.setItem("scms-current", u);
+    alert("登录成功");
+    showMailbox(); // 显示邮箱界面
+  } else alert("用户名或密码错误");
+}
+
+// 发送邮件
+function sendMail() {
+  const from = localStorage.getItem("scms-current");
+  const to = document.getElementById("to").value;
+  const subject = document.getElementById("subject").value;
+  const content = document.getElementById("content").value;
+  
+  let users = JSON.parse(localStorage.getItem("scms-users") || "{}");
+  if(!users[to]) return alert("收件人不存在");
+  
+  users[to].inbox.push({from, subject, content});
+  users[from].sent.push({to, subject, content});
+  localStorage.setItem("scms-users", JSON.stringify(users));
+  alert("邮件发送成功");
+}
