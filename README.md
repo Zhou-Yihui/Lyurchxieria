@@ -1,2 +1,0 @@
-# Lyurchxieria
-personal websit
