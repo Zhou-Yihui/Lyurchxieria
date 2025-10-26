@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>SCMS - 主页</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    :root{--bg:#0b0c2a;--fg:#fff;--card:rgba(255,255,255,.08);--accent:#f0c000;}
+    body.light{--bg:#f5f5f5;--fg:#111;--card:rgba(0,0,0,.05);}
+    body{margin:0;background:var(--bg);color:var(--fg);font-family:Microsoft YaHei;display:flex;flex-direction:column;min-height:100vh;}
+    header{height:56px;background:var(--card);display:flex;align-items:center;padding:0 20px;justify-content:space-between;}
+    main{display:flex;flex:1;overflow:hidden;}
+    aside{width:220px;background:var(--card);padding:10px;display:flex;flex-direction:column;gap:8px;font-size:14px;}
+    aside a{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-radius:6px;text-decoration:none;color:var(--fg);}
+    aside a:hover{background:rgba(255,255,255,.1);}
+    aside .badge{background:var(--accent);color:#000;font-size:12px;padding:2px 6px;border-radius:10px;}
+    #content{flex:1;padding:20px;}
+    #capacityBar{height:6px;background:rgba(255,255,255,.2);border-radius:3px;margin-top:6px;overflow:hidden;}
+    #capacityUsed{height:100%;background:var(--accent);width:0%;}
+    #mailList{display:flex;flex-direction:column;gap:8px;}
+    .mail{padding:10px;background:var(--card);border-radius:6px;cursor:pointer;}
+    .mail:hover{background:rgba(255,255,255,.1);}
+    footer{padding:15px;text-align:center;font-size:12px;color:#aaa;}
+  </style>
+</head>
+<body>
+  <header>
+    <span><i class="fa fa-envelope"></i> 星门邮件系统</span>
+    <div>
+      <button id="themeBtn" onclick="toggleTheme()">🌓 主题</button>
+      <button onclick="logout()"><i class="fa fa-sign-out-alt"></i> 退出</button>
+    </div>
+  </header>
+
+  <main>
+    <aside>
+      <a href="inbox.html"><span><i class="fa fa-inbox"></i> 收件箱</span><span class="badge" id="inboxBadge">0</span></a>
+      <a href="sent.html"><span><i class="fa fa-paper-plane"></i> 发件箱</span><span class="badge" id="sentBadge">0</span></a>
+      <a href="compose.html"><span><i class="fa fa-edit"></i> 写信</span></a>
+      <a href="draft.html"><span><i class="fa fa-file-alt"></i> 草稿</span><span class="badge" id="draftBadge">0</span></a>
+      <a href="spam.html"><span><i class="fa fa-exclamation-triangle"></i> 垃圾邮件</span><span class="badge" id="spamBadge">0</span></a>
+      <a href="trash.html"><span><i class="fa fa-trash"></i> 已删除</span><span class="badge" id="trashBadge">0</span></a>
+      <div style="margin-top:auto;font-size:12px;">
+        邮箱容量
+        <div id="capacityBar"><div id="capacityUsed"></div></div>
+        <div id="capacityText">0 / 1000 封</div>
+      </div>
+    </aside>
+
+    <section id="content">
+      <h2>📬 今天想做什么？</h2>
+      <div id="mailList"></div>
+    </section>
+  </main>
+
+  <footer>© 2024 StarGate Civilization Mail System</footer>
+
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    /****** 1. 初始化客户端 ******/
+    const supabase = window.supabase.createClient(
+      'https://mmlbjwdbgmhfkrrtehyl.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1tbGJqd2RiZ21oZmtycnRlaHlsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE0MDkxNTksImV4cCI6MjA3Njk4NTE1OX0.0bLCXnZYBgS-7nTZ_-cv-4s_26TcnC_o-TmlUEDh5yU'
+    );
+
+    /****** 2. 工具函数 ******/
+    const msg = (sel, txt) => (document.querySelector(sel).textContent = txt);
+    const logout = async () => {
+      await supabase.auth.signOut();
+      localStorage.removeItem('SCMS-currentUser');
+      location.href = 'index.html';
+    };
+
+    /****** 3. 主题切换 ******/
+    function toggleTheme() {
+      document.body.classList.toggle('light');
+      localStorage.setItem('SCMS-theme', document.body.classList.contains('light') ? 'light' : 'dark');
+    }
+    (function () {
+      if (localStorage.getItem('SCMS-theme') === 'light') document.body.classList.add('light');
+    })();
+
+    /****** 4. 主逻辑 ******/
+    (async () => {
+      /* 4.1 登录检查 */
+      const { data: { user }, error: userErr } = await supabase.auth.getUser();
+      if (userErr || !user) return (location.href = 'index.html');
+      const uid = user.id;
+
+      /* 4.2 各文件夹统计（一次性拉取） */
+      const { data: rows } = await supabase
+        .from('emails')
+        .select('folder,read')
+        .or(`to.eq.${uid},from.eq.${uid}`);
+
+      const cnt = { inbox: 0, sent: 0, draft: 0, spam: 0, trash: 0 };
+      let unreadInbox = 0;
+      (rows || []).forEach(r => {
+        cnt[r.folder] = (cnt[r.folder] || 0) + 1;
+        if (r.folder === 'inbox' && !r.read) unreadInbox++;
+      });
+      ['inbox', 'sent', 'draft', 'spam', 'trash'].forEach(f =>
+        msg(`#${f}Badge`, cnt[f] || 0)
+      );
+
+      /* 4.3 容量条 */
+      const total = (rows || []).length;
+      const pct = Math.min(100, Math.floor(total / 1000 * 100));
+      document.getElementById('capacityUsed').style.width = pct + '%';
+      msg('#capacityText', `${total} / 1000 封`);
+
+      /* 4.4 最近 5 封收件 */
+      const { data: latest } = await supabase
+        .from('emails')
+        .select('id,from,title,sent_at')
+        .eq('to', uid)
+        .eq('folder', 'inbox')
+        .order('sent_at', { ascending: false })
+        .limit(5);
+
+      const html = (latest || []).length
+        ? latest.map(m => `
+            <div class="mail" onclick="location.href='inbox.html?id=${m.id}'">
+              <div><b>${m.from}</b> · ${m.title}</div>
+              <small>${new Date(m.sent_at).toLocaleString()}</small>
+            </div>`).join('')
+        : '<p style="color:#aaa;">暂无邮件</p>';
+      document.getElementById('mailList').innerHTML = html;
+    })();
+  </script>
+</body>
+</html>
