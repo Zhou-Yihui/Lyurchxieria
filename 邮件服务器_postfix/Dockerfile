@@ -1,2 +1,0 @@
-# 邮件服务器 Postfix 容器镜像 / Postfix Mail Server Image
-FROM postfix:3.6
