@@ -1,2 +1,0 @@
-# DKIM 服务容器 / DKIM Service Container
-FROM instrumentisto/opendkim:2.11
