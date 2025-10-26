@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>星门国家邮件系统 | SCMS</title>
+<style>
+body{font-family:"Microsoft YaHei",sans-serif;background:#0b0c2a;color:#fff;text-align:center;margin:0;}
+header{padding:25px;background:rgba(255,255,255,.05);}
+section{width:90%;max-width:400px;margin:30px auto;background:rgba(255,255,255,.08);padding:20px;border-radius:10px;}
+input,button{width:80%;padding:10px;margin:8px 0;border:none;border-radius:5px;}
+button{background:#f0c000;color:#000;cursor:pointer;font-size:16px;}
+button:hover{background:#ffd700;}
+#auth-msg{color:#ff9;margin-top:10px;height:20px;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>星门国家邮件系统</h1>
+  <h3>StarGate Civilization Mail System</h3>
+</header>
+
+<section id="auth-section">
+  <input id="username" placeholder="用户名 / Username" autocomplete="off"><br>
+  <input id="password" type="password" placeholder="密码 / Password" autocomplete="off"><br>
+  <button onclick="login()">登录 / Login</button>
+  <button onclick="register()">注册 / Register</button>
+  <p id="auth-msg"></p>
+</section>
+
+<!-- 1. 引入 Supabase SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+/* ==========  初始化 Supabase  ========== */
+const supabase = window.supabase.createClient(
+  'https://mmlbjwdbgmhfkrrtehyl.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1tbGJqd2RiZ21oZmtycnRlaHlsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE0MDkxNTksImV4cCI6MjA3Njk4NTE1OX0.0bLCXnZYBgS-7nTZ_-cv-4s_26TcnC_o-TmlUEDh5yU'
+);
+
+/* ==========  工具  ========== */
+const msg = txt => document.getElementById('auth-msg').textContent = txt;
+
+/* ==========  注册  ========== */
+async function register(){
+  const u = document.getElementById('username').value.trim();
+  const p = document.getElementById('password').value.trim();
+  if(!u || !p) return msg('用户名和密码不能为空');
+  const email = `${u}@lyurchxieria.com`;   // 用你的域名
+  const { data, error } = await supabase.auth.signUp({ email, password: p });
+  if(error) return msg('注册失败：' + error.message);
+  msg('注册成功，请登录');
+}
+
+/* ==========  登录  ========== */
+async function login(){
+  const u = document.getElementById('username').value.trim();
+  const p = document.getElementById('password').value.trim();
+  const email = `${u}@lyurchxieria.com`;
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password: p });
+  if(error) return msg('登录失败：' + error.message);
+  localStorage.setItem('SCMS-currentUser', u);
+  location.href = 'home.html';
+}
+</script>
