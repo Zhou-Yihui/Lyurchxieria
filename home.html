@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>SCMS - 主页</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    :root{--bg:#0b0c2a;--fg:#fff;--card:rgba(255,255,255,.08);--accent:#f0c000;}
+    body.light{--bg:#f5f5f5;--fg:#111;--card:rgba(0,0,0,.05);}
+    body{margin:0;background:var(--bg);color:var(--fg);font-family:Microsoft YaHei;display:flex;flex-direction:column;min-height:100vh;}
+    header{height:56px;background:var(--card);display:flex;align-items:center;padding:0 20px;justify-content:space-between;}
+    main{display:flex;flex:1;overflow:hidden;}
+    aside{width:220px;background:var(--card);padding:10px;display:flex;flex-direction:column;gap:8px;font-size:14px;}
+    aside a{text-decoration:none;color:var(--fg);display:flex;justify-content:space-between;padding:8px 12px;border-radius:6px;}
+    aside a:hover{background:rgba(255,255,255,.1);}
+    aside .badge{background:var(--accent);color:#000;font-size:12px;padding:2px 6px;border-radius:10px;}
+    #content{flex:1;padding:20px;overflow-y:auto;}
+    textarea,input{width:100%;padding:8px;margin:4px 0;border:none;border-radius:4px;}
+    button{padding:6px 12px;margin:4px 2px;border:none;border-radius:4px;background:var(--accent);color:#000;cursor:pointer;}
+    button:hover{background:#ffd700;}
+    .mail{padding:10px;background:var(--card);border-radius:6px;margin-bottom:8px;cursor:pointer;}
+    .mail:hover{background:rgba(255,255,255,.1);}
+    footer{padding:15px;text-align:center;font-size:12px;color:#aaa;}
+  </style>
+</head>
+<body>
+  <header>
+    <span><i class="fa fa-envelope"></i> 星门邮件系统</span>
+    <div>
+      <button onclick="toggleTheme()">🌓 主题</button>
+      <button onclick="logout()"><i class="fa fa-sign-out-alt"></i> 退出</button>
+    </div>
+  </header>
+
+  <main>
+    <aside>
+      <a href="#" onclick="showCompose()"><span><i class="fa fa-edit"></i> 写信</span></a>
+      <a href="#" onclick="showFolder('inbox')"><span><i class="fa fa-inbox"></i> 收件箱</span><span class="badge" id="inboxBadge">0</span></a>
+      <a href="#" onclick="showFolder('sent')"><span><i class="fa fa-paper-plane"></i> 发件箱</span><span class="badge" id="sentBadge">0</span></a>
+      <a href="#" onclick="showFolder('draft')"><span><i class="fa fa-file-alt"></i> 草稿</span><span class="badge" id="draftBadge">0</span></a>
+      <a href="#" onclick="showFolder('trash')"><span><i class="fa fa-trash"></i> 已删除</span><span class="badge" id="trashBadge">0</span></a>
+    </aside>
+
+    <section id="content">
+      <!-- 默认显示写信 -->
+      <div id="composeView">
+        <h2>✉️ 写信</h2>
+        <input id="to" placeholder="收件人（随意用户名）">
+        <input id="subject" placeholder="主题">
+        <textarea id="body" rows="8" placeholder="正文"></textarea>
+        <div>
+          <button onclick="sendMail()">发送</button>
+          <button onclick="saveDraft()">存草稿</button>
+        </div>
+      </div>
+
+      <!-- 邮件列表 -->
+      <div id="listView" style="display:none;">
+        <h2 id="folderTitle">收件箱</h2>
+        <div id="mailList"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>© 2024 StarGate Civilization Mail System</footer>
+
+  <script>
+    /* ===== 工具 ===== */
+    const u = localStorage.getItem('SCMS-user');
+    if (!u) location.href = 'index.html';
+
+    function toggleTheme() {
+      document.body.classList.toggle('light');
+    }
+    function logout() {
+      localStorage.clear();
+      location.href = 'index.html';
+    }
+
+    /* ===== 数据层 ===== */
+    function getStore() {
+      return {
+        inbox: JSON.parse(localStorage.getItem('SCMS-inbox') || '[]'),
+        sent: JSON.parse(localStorage.getItem('SCMS-sent') || '[]'),
+        draft: JSON.parse(localStorage.getItem('SCMS-draft') || '[]'),
+        trash: JSON.parse(localStorage.getItem('SCMS-trash') || '[]')
+      };
+    }
+    function setStore(key, arr) {
+      localStorage.setItem('SCMS-' + key, JSON.stringify(arr));
+    }
+
+    /* ===== 界面切换 ===== */
+    function showCompose() {
+      document.getElementById('composeView').style.display = 'block';
+      document.getElementById('listView').style.display = 'none';
+    }
+    function showFolder(f) {
+      document.getElementById('composeView').style.display = 'none';
+      document.getElementById('listView').style.display = 'block';
+      document.getElementById('folderTitle').textContent = {inbox:'收件箱',sent:'发件箱',draft:'草稿',trash:'已删除'}[f];
+      renderList(f);
+      updateBadges();
+    }
+
+    /* ===== 写信 ===== */
+    function sendMail() {
+      const to = document.getElementById('to').value.trim();
+      const subject = document.getElementById('subject').value.trim();
+      const body = document.getElementById('body').value.trim();
+      if (!to || !subject) return alert('收件人和主题必填');
+      const s = getStore();
+      const mail = {from:u, to, subject, body, date: new Date().toISOString(), id: crypto.randomUUID()};
+      s.sent.push(mail);
+      // 伪造一封“收件”给对方
+      const inbox = JSON.parse(localStorage.getItem('SCMS-inbox-' + to) || '[]');
+      inbox.push({...mail, read:false});
+      localStorage.setItem('SCMS-inbox-' + to, JSON.stringify(inbox));
+      setStore('sent', s.sent);
+      alert('发送成功');
+      ['to','subject','body'].forEach(id=>document.getElementById(id).value='');
+      updateBadges();
+    }
+    function saveDraft() {
+      const subject = document.getElementById('subject').value.trim();
+      const body = document.getElementById('body').value.trim();
+      if (!subject && !body) return;
+      const s = getStore();
+      s.draft.push({subject, body, date:new Date().toISOString(), id:crypto.randomUUID()});
+      setStore('draft', s.draft);
+      alert('草稿已保存');
+      updateBadges();
+    }
+
+    /* ===== 列表 ===== */
+    function renderList(folder) {
+      let src;
+      if (folder==='inbox') src = JSON.parse(localStorage.getItem('SCMS-inbox-' + u) || '[]');
+      else src = getStore()[folder];
+      const list = document.getElementById('mailList');
+      if (!src.length) return list.innerHTML = '<p style="color:#aaa;">暂无邮件</p>';
+      list.innerHTML = src.map((m,idx) => `
+        <div class="mail" onclick="viewMail('${folder}',${idx})">
+          <b>${folder==='inbox'?m.from:m.to}</b> · ${m.subject}
+          <br><small>${new Date(m.date).toLocaleString()}</small>
+        </div>`).join('');
+    }
+    function viewMail(folder, idx) {
+      const src = folder==='inbox'
+        ? JSON.parse(localStorage.getItem('SCMS-inbox-' + u) || '[]')
+        : getStore()[folder];
+      const m = src[idx];
+      if (folder==='inbox' && !m.read) { m.read=true; localStorage.setItem('SCMS-inbox-'+u, JSON.stringify(src)); updateBadges();}
+      alert(`主题：${m.subject}\n\n${m.body}\n\n—— 仅浏览，无操作`);
+    }
+
+    /* ===== 徽章 ===== */
+    function updateBadges() {
+      const s = getStore();
+      const inbox = JSON.parse(localStorage.getItem('SCMS-inbox-' + u) || '[]');
+      document.getElementById('inboxBadge').textContent = inbox.filter(m=>!m.read).length;
+      document.getElementById('sentBadge').textContent = s.sent.length;
+      document.getElementById('draftBadge').textContent = s.draft.length;
+      document.getElementById('trashBadge').textContent = s.trash.length;
+    }
+
+    /* ===== 初始化 ===== */
+    updateBadges();
+  </script>
+</body>
+</html>
