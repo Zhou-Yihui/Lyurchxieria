@@ -1,3 +1,0 @@
-flask
-passlib
-python-dotenv
