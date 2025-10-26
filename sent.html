@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>SCMS - 发件箱</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    :root{--bg:#0b0c2a;--fg:#fff;--card:rgba(255,255,255,.08);--accent:#f0c000;}
+    body.light{--bg:#f5f5f5;--fg:#111;--card:rgba(0,0,0,.05);}
+    body{margin:0;background:var(--bg);color:var(--fg);font-family:Microsoft YaHei;display:flex;flex-direction:column;min-height:100vh;}
+    header{height:56px;background:var(--card);display:flex;align-items:center;padding:0 20px;justify-content:space-between;}
+    main{display:flex;flex:1;overflow:hidden;}aside{width:220px;background:var(--card);padding:10px;display:flex;flex-direction:column;gap:8px;font-size:14px;}
+    aside a{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-radius:6px;text-decoration:none;color:var(--fg);}
+    aside a:hover{background:rgba(255,255,255,.1);}aside .badge{background:var(--accent);color:#000;font-size:12px;padding:2px 6px;border-radius:10px;}
+    #content{flex:1;display:flex;flex-direction:column;}#topBar{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;border-bottom:1px solid var(--card);}
+    #mailTable{width:100%;border-collapse:collapse;}#mailTable th{background:var(--card);padding:8px;text-align:left;font-weight:600;}
+    #mailTable td{padding:8px;border-bottom:1px solid var(--card);}#mailTable tr:hover{background:rgba(255,255,255,.05);}#pagination{display:flex;gap:6px;justify-content:center;margin:10px;}
+    @media(max-width:700px){aside{width:180px;}}</style>
+</head>
+<body>
+<header>
+  <div>
+    <button onclick="location.href='home.html'">← 主页</button>
+    <span style="margin-left:10px;font-size:18px;">📤 发件箱</span>
+  </div>
+  <div>
+    <button id="themeBtn" onclick="toggleTheme()">🌓 主题</button>
+    <button onclick="logout()"><i class="fa fa-sign-out-alt"></i> 退出</button>
+  </div>
+</header>
+<main>
+  <aside>
+    <a href="inbox.html"><span><i class="fa fa-inbox"></i> 收件箱</span><span class="badge" id="inboxBadge">0</span></a>
+    <a href="sent.html"><span><i class="fa fa-paper-plane"></i> 发件箱</span><span class="badge" id="sentBadge">0</span></a>
+    <a href="compose.html"><span><i class="fa fa-edit"></i> 写信</span></a>
+    <a href="draft.html"><span><i class="fa fa-file-alt"></i> 草稿</span><span class="badge" id="draftBadge">0</span></a>
+    <a href="spam.html"><span><i class="fa fa-exclamation-triangle"></i> 垃圾邮件</span><span class="badge" id="spamBadge">0</span></a>
+    <a href="trash.html"><span><i class="fa fa-trash"></i> 已删除</span><span class="badge" id="trashBadge">0</span></a>
+    <div style="margin-top:auto;font-size:12px;">邮箱容量
+      <div id="capacityBar"><div id="capacityUsed"></div></div>
+      <div id="capacityText">0 / 1000 封</div>
+    </div>
+  </aside>
+  <section id="content">
+    <div id="topBar">
+      <span style="font-size:16px;">已发送邮件</span>
+    </div>
+    <table id="mailTable">
+      <thead>
+        <tr>
+          <th>收件人</th>
+          <th>主题</th>
+          <th>时间</th>
+          <th>附件</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="mailList"></tbody>
+    </table>
+    <div id="pagination" class="d-flex justify-content-center mt-3"></div>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const u = localStorage.getItem('SCMS-currentUser');
+const supabase = supabase.createClient(
+  'https://mmlbjwdbgmhfkrrtehyl.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1tbGJqd2RiZ21oZmtycnRlaHlsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE0MDkxNTksImV4cCI6MjA3Njk4NUx5yU'
+);
+async function getUsers(){
+  const { data, error } = await supabase.from('users').select('*');
+  if(error){ console.error(error); return {}; }
+  return data.reduce((acc,u)=>(acc[u.username]=u, acc), {});
+}
+function toggleTheme(){
+  document.body.classList.toggle('light');
+  localStorage.setItem('SCMS-theme', document.body.classList.contains('light')?'light':'dark');
+}
+(function(){
+  if(localStorage.getItem('SCMS-theme')==='light') document.body.classList.add('light');
+})();
+function logout(){
+  localStorage.removeItem('SCMS-currentUser');
+  location.href='index.html';
+}
+(async ()=>{
+  const users = await getUsers(); const me = users[u]; if(!me) return;
+  document.getElementById('inboxBadge').textContent = me.inbox.filter(m=>!m.read).length;
+  document.getElementById('sentBadge').textContent = me.sent.length;
+  const mails = me.sent.slice().reverse();
+  const html = mails.length ? mails.map((m,i)=>`
+    <tr onclick="openPreview(${i})">
+      <td><b>${m.to}</b></td>
+      <td>${m.subject}</td>
+      <td>${new Date(m.date).toLocaleString()}</td>
+      <td>${m.attachments?.length?'<i class=\"fa fa-paperclip\"></i>':''}</td>
+      <td><button class="btn btn-sm btn-outline-secondary" onclick="event.stopPropagation();forwardMail(${i})">转发</button></td>
+    </tr>`).join('') : '<tr><td colspan="5" style="text-align:center;">暂无发件</td></tr>';
+  document.getElementById('mailList').innerHTML = html;
+  const max = Math.ceil(mails.length / 20);
+  const pagination = [];
+  for(let i=1;i<=max;i++) pagination.push(`<button class="${i===1?'on':''}" onclick="goPage(${i})">${i}</button>`);
+  document.getElementById('pagination').innerHTML = pagination.join('');
+  const total = me.inbox.length + me.sent.length;
+  const pct = Math.min(100, Math.floor(total / 1000 * 100));
+  document.getElementById('capacityUsed').style.width = pct + '%';
+  document.getElementById('capacityText').textContent = `${total} / 1000 封`;
+})();
+function goPage(p){location.href='#page'+p;}
+function openPreview(idx){
+  const users = await getUsers(); const m = users[u].sent[idx];
+  if(!m) return;
+  const modal = document.createElement('div');
+  modal.innerHTML = `
+    <div style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999;">
+      <div style="background:var(--card);padding:20px;border-radius:8px;max-width:90%;max-height:80%;overflow:auto;">
+        <h5>${m.subject}</h5>
+        <small>发给：${m.to} · ${new Date(m.date).toLocaleString()}</small>
+        <div style="margin-top:10px;">${m.content}</div>
+        <div class="mt-3"><button onclick="this.parentElement.parentElement.remove()">关闭</button></div>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+function forwardMail(idx){
+  const users = await getUsers(); const m = users[u].sent[idx];
+  location.href = `compose.html?subject=Fwd: ${encodeURIComponent(m.subject)}&content=${encodeURIComponent(m.content)}`;
+}
+</script>
+</body>
+</html>
