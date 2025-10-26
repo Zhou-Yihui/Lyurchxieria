@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><title>SCMS - 登录</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>:root{--bg:#0b0c2a;--fg:#fff;--card:rgba(255,255,255,.08);--accent:#f0c000;}body.light{--bg:#f5f5f5;--fg:#111;--card:rgba(0,0,0,.05);}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:Microsoft YaHei;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;}
+header{margin-bottom:20px;text-align:center;}
+section{background:var(--card);padding:30px 40px;border-radius:10px;width:90%;max-width:400px;}
+input,button{width:100%;padding:10px;margin:8px 0;border:none;border-radius:5px;}
+button{background:var(--accent);color:#000;cursor:pointer;font-size:16px;}
+button:hover{background:#ffd700;}
+#msg{color:#ff9;margin-top:8px;height:20px;}</style>
+</head><body>
+<header><h1>星门国家邮件系统</h1><h3>SCMS</h3></header>
+<section>
+  <input id="username" placeholder="用户名 / Username">
+  <input id="password" type="password" placeholder="密码 / Password">
+  <button onclick="login()">登录</button>
+  <button onclick="register()">注册</button>
+  <p id="msg"></p>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const supabase = supabase.createClient(
+  'https://mmlbjwdbgmhfkrrtehyl.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1tbGJqd2RiZ21oZmtycnRlaHlsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE0MDkxNTksImV4cCI6MjA3Njk4NTE1OX0.0bLCXnZYBgS-7nTZ_-cv-4s_26TcnC_o-TmlUEDh5yU'
+);
+const msg = txt => document.getElementById('msg').textContent = txt;
+async function getUsers(){
+  const { data, error } = await supabase.from('users').select('*');
+  if(error){ console.error(error); return {}; }
+  return data.reduce((acc,u)=>(acc[u.username]=u, acc), {});
+}
+async function setUsers(users){
+  const list = Object.values(users);
+  const { error } = await supabase.from('users').upsert(list);
+  if(error) console.error(error);
+}
+async function register(){
+  const u = document.getElementById('username').value.trim();
+  const p = document.getElementById('password').value.trim();
+  if(!u||!p) return msg('用户名和密码不能为空');
+  const users = await getUsers();
+  if(users[u]) return msg('用户已存在');
+  users[u] = {username:u, password:p, inbox:[], sent:[], drafts:[], spam:[], trash:[]};
+  await setUsers(users);
+  msg('注册成功，请登录');
+}
+async function login(){
+  const u = document.getElementById('username').value.trim();
+  const p = document.getElementById('password').value.trim();
+  const users = await getUsers();
+  if(users[u] && users[u].password === p){
+    localStorage.setItem('SCMS-currentUser', u);
+    location.href = 'home.html';
+  }else msg('用户名或密码错误');
+}
+</script></body></html>

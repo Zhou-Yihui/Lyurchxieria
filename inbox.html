@@ -1,0 +1,241 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>SCMS - 收件箱</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>:root{--bg:#0b0c2a;--fg:#fff;--card:rgba(255,255,255,.08);--accent:#f0c000;}body.light{--bg:#f5f5f5;--fg:#111;--card:rgba(0,0,0,.05);}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:Microsoft YaHei;display:flex;flex-direction:column;height:100vh;}
+header{height:56px;background:var(--card);display:flex;align-items:center;padding:0 20px;justify-content:space-between;}
+main{display:flex;flex:1;overflow:hidden;}aside{width:220px;background:var(--card);padding:10px;display:flex;flex-direction:column;gap:8px;font-size:14px;}
+aside a{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-radius:6px;text-decoration:none;color:var(--fg);}
+aside a:hover{background:rgba(255,255,255,.1);}aside .badge{background:var(--accent);color:#000;font-size:12px;padding:2px 6px;border-radius:10px;}
+#content{flex:1;display:flex;flex-direction:column;}#topBar{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;border-bottom:1px solid var(--card);}
+#searchBox{display:flex;gap:8px;flex:1;max-width:400px;}#searchBox input{flex:1;padding:6px 10px;border:none;border-radius:4px;background:#111;color:var(--fg);}
+body.light #searchBox input{background:#fff;color:#111;}#bulkBar{display:none;gap:10px;align-items:center;}#bulkBar.show{display:flex;}
+#mailTable{width:100%;border-collapse:collapse;}#mailTable th{background:var(--card);padding:8px;text-align:left;font-weight:600;}
+#mailTable td{padding:8px;border-bottom:1px solid var(--card);}#mailTable tr:hover{background:rgba(255,255,255,.05);}.star{cursor:pointer;font-size:18px;}.star.on{color:var(--accent);}
+.chk{width:16px;}#previewPanel{width:320px;background:var(--card);padding:15px;display:none;flex-direction:column;gap:10px;}
+#previewPanel.show{display:flex;}#previewPanel .close{align-self:flex-end;font-size:20px;cursor:pointer;}#pagination{display:flex;gap:6px;justify-content:center;margin:10px;}
+@media(max-width:700px){aside{width:180px;}#previewPanel{display:none!important;}}</style>
+<script>(()=>{if(!localStorage.getItem("SCMS-currentUser"))location.href='index.html';})();</script>
+</head><body>
+<header>
+  <div>
+    <button onclick="location.href='home.html'">← 主页</button>
+    <span style="margin-left:10px;font-size:18px;">📥 收件箱</span>
+  </div>
+  <div>
+    <button id="themeBtn" onclick="toggleTheme()">🌓 主题</button>
+    <button onclick="logout()">退出</button>
+  </div>
+</header>
+<main>
+  <aside>
+    <a href="inbox.html"><span><i class="fa fa-inbox"></i> 收件箱</span><span class="badge" id="inboxBadge">0</span></a>
+    <a href="sent.html"><span><i class="fa fa-paper-plane"></i> 发件箱</span><span class="badge" id="sentBadge">0</span></a>
+    <a href="compose.html"><span><i class="fa fa-edit"></i> 写信</span></a>
+    <a href="draft.html"><span><i class="fa fa-file-alt"></i> 草稿</span><span class="badge" id="draftBadge">0</span></a>
+    <a href="spam.html"><span><i class="fa fa-exclamation-triangle"></i> 垃圾邮件</span><span class="badge" id="spamBadge">0</span></a>
+    <a href="trash.html"><span><i class="fa fa-trash"></i> 已删除</span><span class="badge" id="trashBadge">0</span></a>
+    <div style="margin-top:auto;font-size:12px;">邮箱容量
+      <div id="capacityBar"><div id="capacityUsed"></div></div>
+      <div id="syncInfo">同步中…</div>
+    </div>
+  </aside>
+
+  <section id="content">
+    <div id="topBar">
+      <div id="searchBox">
+        <input id="searchInput" placeholder="搜索发件人、主题…" onkeyup="doSearch()">
+        <button onclick="clearSearch()">✖</button>
+      </div>
+      <div id="bulkBar">
+        <span id="bulkCount"></span>
+        <button onclick="bulkStar()"><i class="fa fa-star"></i> 星标</button>
+        <button onclick="bulkRead()"><i class="fa fa-envelope-open"></i> 已读</button>
+        <button onclick="bulkDel()"><i class="fa fa-trash"></i> 删除</button>
+      </div>
+    </div>
+
+    <table id="mailTable">
+      <thead>
+        <tr>
+          <th><input type="checkbox" id="chkAll" onchange="toggleAll()"></th>
+          <th>星标</th>
+          <th>发件人</th>
+          <th>主题</th>
+          <th>时间</th>
+          <th>附件</th>
+        </tr>
+      </thead>
+      <tbody id="mailList"></tbody>
+    </table>
+
+    <div id="pagination" class="d-flex justify-content-center mt-3"></div>
+  </section>
+
+  <!-- 右侧预览 -->
+  <aside id="previewPanel">
+    <span class="close" onclick="closePreview()">✖</span>
+    <h5 id="prevTitle">标题</h5>
+    <small id="prevFrom">发件人</small>
+    <div id="prevBody" style="max-height:40vh;overflow-y:auto;margin-top:10px;"></div>
+    <div id="prevAttach" class="mt-2"></div>
+    <div class="d-flex gap-2 mt-3">
+      <button class="btn btn-sm btn-outline-primary" onclick="replyMail()">回复</button>
+      <button class="btn btn-sm btn-outline-secondary" onclick="forwardMail()">转发</button>
+      <button class="btn btn-sm btn-danger" onclick="delMail()">删除</button>
+    </div>
+  </aside>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fuse.js/6.6.2/fuse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/js/all.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const u = localStorage.getItem('SCMS-currentUser');
+const supabase = supabase.createClient(
+  'https://mmlbjwdbgmhfkrrtehyl.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1tbGJqd2RiZ21oZmtycnRlaHlsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE0MDkxNTksImV4cCI6MjA3Njk4NTE1OX0.0bLCXnZYBgS-7nTZ_-cv-4s_26TcnC_o-TmlUEDh5yU'
+);
+async function getUsers(){
+  const { data, error } = await supabase.from('users').select('*');
+  if(error){ console.error(error); return {}; }
+  return data.reduce((acc,u)=>(acc[u.username]=u, acc), {});
+}
+async function setUsers(users){
+  const list = Object.values(users);
+  const { error } = await supabase.from('users').upsert(list);
+  if(error) console.error(error);
+}
+function toggleTheme(){
+  document.body.classList.toggle('light');
+  localStorage.setItem('SCMS-theme', document.body.classList.contains('light')?'light':'dark');
+}
+(function(){
+  if(localStorage.getItem('SCMS-theme')==='light') document.body.classList.add('light');
+})();
+function logout(){
+  localStorage.removeItem('SCMS-currentUser');
+  location.href='index.html';
+}
+let mails = [], selected = new Set(), curPage = 1, const PAGE = 20, curMail = null;
+(async ()=>{
+  const users = await getUsers();
+  const me = users[u];
+  if(!me) return;
+  mails = me.inbox.filter(m=>!m.deleted);
+  mails.forEach((m,i)=>m.idx=i);
+  renderFolders(me);
+  render();
+  renderCapacity(me);
+})();
+function renderFolders(me){
+  document.getElementById('inboxBadge').textContent = me.inbox.filter(m=>!m.read).length;
+  document.getElementById('sentBadge').textContent = me.sent.length;
+  document.getElementById('draftBadge').textContent = (me.drafts||[]).length;
+  document.getElementById('spamBadge').textContent = (me.spam||[]).length;
+  document.getElementById('trashBadge').textContent = (me.trash||[]).length;
+}
+function renderCapacity(me){
+  const total = me.inbox.length + me.sent.length;
+  const pct = Math.min(100, Math.floor(total / 1000 * 100));
+  document.getElementById('capacityUsed').style.width = pct + '%';
+  document.getElementById('syncInfo').textContent = '同步中…';
+}
+let fuse;
+function initSearch(){
+  fuse = new Fuse(mails, {keys:['from','subject','content'], threshold:0.4});
+}
+function doSearch(){
+  if(!fuse) initSearch();
+  render();
+}
+function clearSearch(){
+  document.getElementById('searchInput').value='';
+  render();
+}
+function filterMails(){
+  const kw = document.getElementById('searchInput').value.trim();
+  if(!kw) return mails;
+  return fuse.search(kw).map(r=>r.item);
+}
+function render(){
+  const filtered = filterMails();
+  const total = filtered.length;
+  const maxPage = Math.ceil(total/PAGE);
+  const start = (curPage-1)*PAGE, end = start+PAGE;
+  const slice = filtered.slice(start, end);
+  const html = slice.map(m=>`
+    <tr data-idx="${m.idx}">
+      <td><input type="checkbox" class="chk" onchange="toggleSel(${m.idx})"></td>
+      <td><span class="star ${m.star?'on':''}" onclick="toggleStar(${m.idx})">★</span></td>
+      <td><b>${m.from}</b></td>
+      <td style="cursor:pointer;" onclick="openPreview(${m.idx})">${m.subject}</td>
+      <td>${new Date(m.date).toLocaleString()}</td>
+      <td>${m.attachments?.length?'<i class="fa fa-paperclip"></i>':''}</td>
+    </tr>`).join("");
+  document.getElementById('mailList').innerHTML = html;
+  renderPagination(maxPage);
+  bulkBar.classList.toggle('show', selected.size>0);
+  document.getElementById('bulkCount').textContent = `已选 ${selected.size} 封`;
+}
+function toggleSel(idx){ selected.has(idx)?selected.delete(idx):selected.add(idx); render(); }
+function toggleAll(){
+  const chk = document.getElementById('chkAll').checked;
+  selected.clear();
+  if(chk) mails.forEach((m,i)=>selected.add(i));
+  render();
+}
+async function bulkStar(){
+  const users = await getUsers();
+  selected.forEach(i=>users[u].inbox[i].star = true);
+  await setUsers(users); selected.clear(); render();
+}
+async function bulkRead(){
+  const users = await getUsers();
+  selected.forEach(i=>users[u].inbox[i].read = true);
+  await setUsers(users); selected.clear(); render();
+}
+async function bulkDel(){
+  if(!confirm(`删除 ${selected.size} 封邮件？`)) return;
+  const users = await getUsers();
+  selected.forEach(i=>users[u].inbox[i].deleted = true);
+  await setUsers(users); selected.clear(); render();
+}
+async function toggleStar(idx){
+  const users = await getUsers();
+  users[u].inbox[idx].star = !users[u].inbox[idx].star;
+  await setUsers(users); render();
+}
+async function openPreview(idx){
+  const users = await getUsers();
+  const m = users[u].inbox[idx];
+  if(!m.read){ users[u].inbox[idx].read = true; await setUsers(users); render(); }
+  curMail = m;
+  document.getElementById('prevTitle').textContent = m.subject;
+  document.getElementById('prevFrom').textContent = m.from + '  ' + new Date(m.date).toLocaleString();
+  document.getElementById('prevBody').innerHTML = m.content;
+  document.getElementById('prevAttach').innerHTML = m.attachments?.map(f=>`<div><i class="fa fa-paperclip"></i> ${f}</div>`).join('') || '';
+  document.getElementById('previewPanel').classList.add('show');
+}
+function closePreview(){ document.getElementById('previewPanel').classList.remove('show'); }
+async function replyMail(){
+  if(!curMail) return;
+  location.href = `compose.html?to=${encodeURIComponent(curMail.from)}&subject=Re: ${encodeURIComponent(curMail.subject)}`;
+}
+async function forwardMail(){
+  if(!curMail) return;
+  location.href = `compose.html?subject=Fwd: ${encodeURIComponent(curMail.subject)}&content=${encodeURIComponent(curMail.content)}`;
+}
+async function delMail(){
+  if(!curMail) return;
+  const users = await getUsers();
+  users[u].inbox[curMail.idx].deleted = true;
+  await setUsers(users);
+  closePreview(); render();
+}
+function renderPagination(max){
+  const html = [];
+  for(let i=1;i<=max;i++) html.push(`<button class="${i===curPage?'on':''}" onclick="curPage=${i};render()">${i}</button>`);
+  document.getElementById('pagination').innerHTML = html.join('');
+}
+</script></body></html>
