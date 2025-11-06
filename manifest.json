@@ -1,0 +1,16 @@
+{
+  "name": "星门国家邮件系统",
+  "short_name": "星门国邮",
+  "start_url": "./index.html",
+  "display": "standalone", // 核心：独立APP窗口（无浏览器控件）
+  "background_color": "#0b0c2a", // 匹配页面背景色
+  "theme_color": "#0b0c2a", // 状态栏颜色=页面主题色（非红色）
+  "description": "StarGate Civilization Mail System",
+  "icons": [
+    { "src": "./1762414107892.png", "sizes": "192x192", "type": "image/png" }, // 红色图标
+    { "src": "./1762414171387.png", "sizes": "512x512", "type": "image/png" }  // 红色图标
+  ],
+  "orientation": "portrait",
+  "prefer_related_applications": false, // 优先识别为网页APP，不跳转应用商店
+  "scope": "./" // 限定APP作用域，增强独立感
+}
